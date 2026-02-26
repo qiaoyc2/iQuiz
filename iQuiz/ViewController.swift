@@ -42,11 +42,9 @@ final class ViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
         title = "iQuiz"
 
-//        // Register a cell type
-//        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "TopicCell")
 
         // Settings button (top right)
         navigationItem.rightBarButtonItem = UIBarButtonItem(

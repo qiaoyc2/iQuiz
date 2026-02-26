@@ -27,6 +27,7 @@ final class QuizFlowViewController: UIViewController {
 
     private let titleLabel = UILabel()
     private let questionLabel = UILabel()
+    private let hintLabel = UILabel()
 
     private let optionsStack = UIStackView()
     private var optionButtons: [UIButton] = []
@@ -54,6 +55,7 @@ final class QuizFlowViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         setupUI()
+        setupGestures()
         render()
     }
 
@@ -74,6 +76,10 @@ final class QuizFlowViewController: UIViewController {
         correctAnswerLabel.font = .systemFont(ofSize: 16, weight: .regular)
         correctAnswerLabel.textColor = .secondaryLabel
         correctAnswerLabel.numberOfLines = 0
+        
+        hintLabel.font = .systemFont(ofSize: 13, weight: .regular)
+        hintLabel.textColor = .secondaryLabel
+        hintLabel.numberOfLines = 0
 
         // Options stack
         optionsStack.axis = .vertical
@@ -94,6 +100,7 @@ final class QuizFlowViewController: UIViewController {
             optionsStack,
             feedbackLabel,
             correctAnswerLabel,
+            hintLabel,
             primaryButton
         ])
         content.axis = .vertical
@@ -107,6 +114,33 @@ final class QuizFlowViewController: UIViewController {
             content.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             content.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
         ])
+    }
+    
+    private func setupGestures() {
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeRight))
+        swipeRight.direction = .right
+        view.addGestureRecognizer(swipeRight)
+
+        let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(didSwipeLeft))
+        swipeLeft.direction = .left
+        view.addGestureRecognizer(swipeLeft)
+    }
+
+    @objc private func didSwipeRight() {
+        switch mode {
+        case .question:
+            guard selectedIndex != nil else { return }
+            handleSubmit()
+        case .answer:
+            handleNext()
+        case .finished:
+            navigationController?.popToRootViewController(animated: true)
+        }
+    }
+
+    @objc private func didSwipeLeft() {
+        // abandon quiz + discard score
+        navigationController?.popToRootViewController(animated: true)
     }
 
     // MARK: - Render
@@ -127,7 +161,7 @@ final class QuizFlowViewController: UIViewController {
 
         titleLabel.text = "Question \(index + 1) of \(topic.questions.count)"
         questionLabel.text = q.text
-
+        hintLabel.text = "Tip: Swipe → to Submit • Swipe ← to Quit"
         feedbackLabel.isHidden = true
         correctAnswerLabel.isHidden = true
 
@@ -146,6 +180,7 @@ final class QuizFlowViewController: UIViewController {
 
         titleLabel.text = "Answer"
         questionLabel.text = q.text
+        hintLabel.text = "Tip: Swipe → for Next • Swipe ← to Quit"
 
         feedbackLabel.isHidden = false
         correctAnswerLabel.isHidden = false
@@ -168,7 +203,7 @@ final class QuizFlowViewController: UIViewController {
 
         titleLabel.text = "Finished"
         questionLabel.text = performanceText(score: score, total: total)
-
+        hintLabel.text = "Tip: Tap Next to return"
         // hide options + answer labels
         optionsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         optionButtons = []
