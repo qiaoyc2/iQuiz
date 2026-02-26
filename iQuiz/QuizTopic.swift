@@ -7,8 +7,15 @@
 
 import Foundation
 
+struct QuizQuestion {
+    let text: String
+    let answers: [String]
+    let correctIndex: Int
+}
+
 struct QuizTopic {
     let title: String
     let desc: String
     let iconSystemName: String
+    let questions: [QuizQuestion]
 }
