@@ -15,10 +15,10 @@ final class ViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        QuizDataStore.shared.loadFromDiskIfAvailable()
+        topics = QuizDataStore.shared.topics
         
         title = "iQuiz"
-
-        topics = QuizDataStore.shared.topics
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(pullToRefresh), for: .valueChanged)
         NotificationCenter.default.addObserver(self,
@@ -42,14 +42,9 @@ final class ViewController: UITableViewController {
     }
 
     @objc private func didTapSettings() {
-//        let alert = UIAlertController(title: "Settings",
-//                                      message: "Settings go here",
-//                                      preferredStyle: .alert)
-//        alert.addAction(UIAlertAction(title: "OK", style: .default))
-//        present(alert, animated: true)
-        navigationController?.pushViewController(SettingsViewController(), animated: true)
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
-    
     
     @objc private func pullToRefresh() {
         // Optional: if no network, just stop spinner + alert

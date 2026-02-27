@@ -58,7 +58,7 @@ enum QuizServiceError: Error {
 }
 
 final class QuizService {
-    func fetchTopics(from urlString: String, completion: @escaping (Result<[QuizTopic], Error>) -> Void) {
+    func fetchRawJSON(from urlString: String, completion: @escaping (Result<Data, Error>) -> Void) {
         guard let url = URL(string: urlString) else {
             completion(.failure(QuizServiceError.badURL))
             return
@@ -73,20 +73,43 @@ final class QuizService {
                 DispatchQueue.main.async { completion(.failure(QuizServiceError.noData)) }
                 return
             }
-
-            do {
-                // JSON format: [ { "title":..., "desc":..., "questions":[...] }, ... ]
-                let dtos = try JSONDecoder().decode([QuizTopicDTO].self, from: data)
-                let models = dtos.map { $0.toModel() }
-                DispatchQueue.main.async { completion(.success(models)) }
-            } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
-            }
+            DispatchQueue.main.async { completion(.success(data)) }
         }.resume()
+    }
+
+    func decodeTopics(from data: Data) throws -> [QuizTopic] {
+        let dtos = try JSONDecoder().decode([QuizTopicDTO].self, from: data)
+        return dtos.map { $0.toModel() }
     }
 }
 
+
 // MARK: - Data store (holds latest topics + notifies list)
+
+enum QuizCache {
+    private static let fileName = "cached_questions.json"
+
+    private static var fileURL: URL {
+        let fm = FileManager.default
+        let dir = try! fm.url(for: .applicationSupportDirectory,
+                              in: .userDomainMask,
+                              appropriateFor: nil,
+                              create: true)
+        return dir.appendingPathComponent(fileName)
+    }
+
+    static func save(_ data: Data) throws {
+        try data.write(to: fileURL, options: [.atomic])
+    }
+
+    static func load() throws -> Data {
+        try Data(contentsOf: fileURL)
+    }
+
+    static func exists() -> Bool {
+        FileManager.default.fileExists(atPath: fileURL.path)
+    }
+}
 
 final class QuizDataStore {
     static let shared = QuizDataStore()
@@ -96,17 +119,49 @@ final class QuizDataStore {
 
     private init() {}
 
-    /// Downloads from SettingsStore.quizURL and updates `topics`.
-    /// Posts Notification.Name.quizDataUpdated on success.
+    func loadFromDiskIfAvailable() {
+        guard QuizCache.exists() else { return }
+        do {
+            let data = try QuizCache.load()
+            let models = try service.decodeTopics(from: data)
+            topics = models
+            NotificationCenter.default.post(name: .quizDataUpdated, object: nil)
+        } catch {
+            // ignore; cache may be corrupted
+        }
+    }
+
     func refresh(completion: @escaping (Result<[QuizTopic], Error>) -> Void) {
-        service.fetchTopics(from: SettingsStore.quizURL) { [weak self] result in
+        service.fetchRawJSON(from: SettingsStore.quizURL) { [weak self] result in
             switch result {
-            case .success(let topics):
-                self?.topics = topics
-                NotificationCenter.default.post(name: .quizDataUpdated, object: nil)
-                completion(.success(topics))
+            case .success(let data):
+                do {
+                    let models = try self?.service.decodeTopics(from: data) ?? []
+                    // Save to disk for offline use
+                    try QuizCache.save(data)
+
+                    self?.topics = models
+                    NotificationCenter.default.post(name: .quizDataUpdated, object: nil)
+                    completion(.success(models))
+                } catch {
+                    completion(.failure(error))
+                }
+
             case .failure(let err):
-                completion(.failure(err))
+                // OFFLINE FALLBACK: load cached file
+                if QuizCache.exists() {
+                    do {
+                        let data = try QuizCache.load()
+                        let models = try self?.service.decodeTopics(from: data) ?? []
+                        self?.topics = models
+                        NotificationCenter.default.post(name: .quizDataUpdated, object: nil)
+                        completion(.success(models))
+                    } catch {
+                        completion(.failure(err)) // fallback failed too
+                    }
+                } else {
+                    completion(.failure(err))
+                }
             }
         }
     }
