@@ -12,6 +12,7 @@ import Network
 
 extension Notification.Name {
     static let quizDataUpdated = Notification.Name("quizDataUpdated")
+    static let settingsChanged = Notification.Name("settingsChanged")
 }
 
 // MARK: - Settings persistence (URL field)
@@ -19,10 +20,16 @@ extension Notification.Name {
 enum SettingsStore {
     private static let urlKey = "quizSourceURL"
     static let defaultURL = "http://tednewardsandbox.site44.com/questions.json"
+    private static let refreshKey = "refreshIntervalSeconds"
 
     static var quizURL: String {
         get { UserDefaults.standard.string(forKey: urlKey) ?? defaultURL }
         set { UserDefaults.standard.set(newValue, forKey: urlKey) }
+    }
+    
+    static var refreshIntervalSeconds: Int {
+        get { UserDefaults.standard.integer(forKey: refreshKey) } // 0 if not set
+        set { UserDefaults.standard.set(newValue, forKey: refreshKey) }
     }
 }
 

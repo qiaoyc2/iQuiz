@@ -11,6 +11,8 @@ final class SettingsViewController: UIViewController {
 
     private let urlField = UITextField()
     private let checkNowButton = UIButton(type: .system)
+    private let intervalField = UITextField()
+    private let saveButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -18,6 +20,7 @@ final class SettingsViewController: UIViewController {
         title = "Settings"
         setupUI()
         urlField.text = SettingsStore.quizURL
+        intervalField.text = "\(SettingsStore.refreshIntervalSeconds)"
     }
 
     private func setupUI() {
@@ -26,11 +29,18 @@ final class SettingsViewController: UIViewController {
         urlField.autocorrectionType = .no
         urlField.keyboardType = .URL
         urlField.placeholder = "Quiz JSON URL"
+        
+        intervalField.borderStyle = .roundedRect
+        intervalField.keyboardType = .numberPad
+        intervalField.placeholder = "Auto-refresh interval (seconds, 0 = off)"
 
+        saveButton.setTitle("Save Refreshing Setting", for: .normal)
+        saveButton.addTarget(self, action: #selector(didTapSave), for: .touchUpInside)
+        
         checkNowButton.setTitle("Check Now", for: .normal)
         checkNowButton.addTarget(self, action: #selector(didTapCheckNow), for: .touchUpInside)
 
-        let stack = UIStackView(arrangedSubviews: [urlField, checkNowButton])
+        let stack = UIStackView(arrangedSubviews: [urlField, intervalField, saveButton, checkNowButton])
         stack.axis = .vertical
         stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -44,8 +54,7 @@ final class SettingsViewController: UIViewController {
     }
 
     @objc private func didTapCheckNow() {
-        let text = (urlField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !text.isEmpty { SettingsStore.quizURL = text }
+        didTapSave() // save first so download uses the new URL/interval
 
         guard NetworkMonitor.shared.isConnected else {
             showAlert(title: "Network Error", message: "Network is not available.")
@@ -62,6 +71,22 @@ final class SettingsViewController: UIViewController {
         }
     }
 
+    @objc private func didTapSave() {
+        // Save URL
+        let urlText = (urlField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !urlText.isEmpty { SettingsStore.quizURL = urlText }
+
+        // Save interval
+        let intervalText = (intervalField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let interval = Int(intervalText) ?? 0
+        SettingsStore.refreshIntervalSeconds = max(0, interval)
+
+        // Notify list screen to reconfigure timer
+        NotificationCenter.default.post(name: .settingsChanged, object: nil)
+
+        showAlert(title: "Saved", message: "Settings updated.")
+    }
+    
     private func showAlert(title: String, message: String) {
         let a = UIAlertController(title: title, message: message, preferredStyle: .alert)
         a.addAction(UIAlertAction(title: "OK", style: .default))
