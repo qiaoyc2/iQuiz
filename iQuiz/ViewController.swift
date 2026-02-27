@@ -10,43 +10,20 @@ import UIKit
 final class ViewController: UITableViewController {
 
 
-    private let topics: [QuizTopic] = [
-        QuizTopic(
-            title: "Mathematics",
-            desc: "Test your math skills with fun problems.",
-            iconSystemName: "function",
-            questions: [
-                QuizQuestion(text: "What is 2 + 2?", answers: ["3", "4", "5"], correctIndex: 1),
-                QuizQuestion(text: "What is 10 / 2?", answers: ["2", "5", "10"], correctIndex: 1),
-            ]
-        ),
-        QuizTopic(
-            title: "Marvel Super Heroes",
-            desc: "How well do you know the Marvel universe?",
-            iconSystemName: "bolt.fill",
-            questions: [
-                QuizQuestion(text: "Who is Iron Man?", answers: ["Steve Rogers", "Tony Stark", "Bruce Banner"], correctIndex: 1),
-                QuizQuestion(text: "Thor is the god of…", answers: ["Thunder", "Mischief", "Time"], correctIndex: 0),
-            ]
-        ),
-        QuizTopic(
-            title: "Science",
-            desc: "Explore physics, chemistry, and biology basics.",
-            iconSystemName: "atom",
-            questions: [
-                QuizQuestion(text: "Water's chemical formula is…", answers: ["CO2", "H2O", "O2"], correctIndex: 1),
-                QuizQuestion(text: "Earth revolves around the…", answers: ["Moon", "Mars", "Sun"], correctIndex: 2),
-            ]
-        )
-    ]
+    private var topics: [QuizTopic] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         title = "iQuiz"
 
+        topics = QuizDataStore.shared.topics
 
-        // Settings button (top right)
+        NotificationCenter.default.addObserver(self,
+                                                selector: #selector(handleDataUpdate),
+                                                name: .quizDataUpdated,
+                                                object: nil)
+
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "Settings",
             style: .plain,
@@ -56,11 +33,12 @@ final class ViewController: UITableViewController {
     }
 
     @objc private func didTapSettings() {
-        let alert = UIAlertController(title: "Settings",
-                                      message: "Settings go here",
-                                      preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+//        let alert = UIAlertController(title: "Settings",
+//                                      message: "Settings go here",
+//                                      preferredStyle: .alert)
+//        alert.addAction(UIAlertAction(title: "OK", style: .default))
+//        present(alert, animated: true)
+        navigationController?.pushViewController(SettingsViewController(), animated: true)
     }
 
     // MARK: - TableView Data Source
@@ -92,4 +70,10 @@ final class ViewController: UITableViewController {
         let vc = QuizFlowViewController(topic: topic)
         navigationController?.pushViewController(vc, animated: true)
     }
+    
+    @objc private func handleDataUpdate() {
+        topics = QuizDataStore.shared.topics
+        tableView.reloadData()
+    }
+
 }
